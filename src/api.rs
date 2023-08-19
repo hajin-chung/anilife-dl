@@ -1,6 +1,7 @@
 use std::fmt;
 
 use base64::{engine::general_purpose, Engine as _};
+use log::{debug, warn};
 use regex::Regex;
 use reqwest::{header, Client, IntoUrl, RequestBuilder};
 use scraper::{Html, Selector};
@@ -8,8 +9,8 @@ use serde_json::Value;
 
 use crate::AsyncResult;
 
-const HOST: &str = "https://anilife.live";
-const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36";
+pub const HOST: &str = "https://anilife.live";
+pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36";
 
 pub fn build_url(path: &String) -> String {
   HOST.to_string() + path
@@ -149,8 +150,10 @@ impl LifeClient {
       .collect();
 
     if player_urls.len() == 0 {
-      panic!("no players ready");
+      warn!("no players");
+      return Err("no players".into());
     }
+    debug!("{:?}", player_urls);
 
     let player_url = &player_urls[0];
     let player_html = self.get(player_url, Some(url)).send().await?.text().await?;
@@ -174,12 +177,13 @@ impl LifeClient {
       .await?
       .json::<serde_json::Value>()
       .await?;
+    debug!("{}", video_data);
 
     let hls_url = match &video_data[0]["url"] {
       Value::String(url) => url,
       _ => return Err("hls url not found".into()),
     };
 
-    Ok(hls_url.to_owned())
+    Ok(hls_url.clone())
   }
 }
