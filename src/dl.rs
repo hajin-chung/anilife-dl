@@ -53,7 +53,7 @@ impl Downloader {
     Ok(filename)
   }
 
-  pub async fn start(&self, url: &String) -> AsyncResult<()> {
+  pub async fn start(&self, url: &String, filename: &String) -> AsyncResult<()> {
     let content = self
       .client
       .get(url)
@@ -111,6 +111,11 @@ impl Downloader {
           debug!("{}", e);
         }
       }
+    }
+
+    match fs::rename("./segment/all.ts", format!("{}.ts", filename)) {
+      Err(e) => debug!("{}", e),
+      Ok(_) => (),
     }
 
     Ok(())

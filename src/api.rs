@@ -31,6 +31,18 @@ pub struct LifeEpisodeInfo {
   pub num: String,
 }
 
+impl fmt::Display for LifeAnimeInfo {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.title)
+  }
+}
+
+impl fmt::Display for LifeEpisodeInfo {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{} - {}", self.num, self.title)
+  }
+}
+
 impl fmt::Debug for LifeAnimeInfo {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "anime {{ title: {}, url: {} }}", self.title, self.url)

@@ -1,4 +1,5 @@
 use anilife_rs::{api::LifeClient, dl::Downloader};
+use inquire::{Select, Text};
 
 #[macro_use]
 extern crate log;
@@ -10,19 +11,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let client = LifeClient::new();
   let downloader = Downloader::new();
 
-  let (anime_list, search_url) = client.search(&String::from("무직전생")).await?;
-  info!("{:?}", anime_list);
+  loop {
+    let query = match Text::new("Search: ").prompt() {
+      Ok(q) => q,
+      Err(error) => {
+        debug!("{}", error);
+        continue;
+      }
+    };
 
-  let anime = &anime_list[0];
-  let (episode_list, episode_url) = client.get_episodes(&anime.url, &search_url).await?;
-  info!("{:?}", episode_list);
+    let (anime_list, search_url) = client.search(&query).await?;
+    info!("{:?}", anime_list);
 
-  let hls_url = client
-    .get_episode_hls(&episode_list[0].url, &episode_url)
-    .await?;
-  info!("{}", hls_url);
+    let anime = match Select::new("Animes", anime_list).prompt() {
+      Ok(a) => a,
+      Err(error) => {
+        debug!("{}", error);
+        continue;
+      }
+    };
 
-  downloader.start(&hls_url).await?;
+    let (episode_list, episode_url) = client.get_episodes(&anime.url, &search_url).await?;
+    let episode = match Select::new("Episodes", episode_list).prompt() {
+      Ok(e) => e,
+      Err(error) => {
+        debug!("{}", error);
+        continue;
+      }
+    };
+
+    let hls_url = client.get_episode_hls(&episode.url, &episode_url).await?;
+
+    let filename = format!("{}-{}-{}", anime.title, episode.num, episode.title);
+    downloader.start(&hls_url, &filename).await?;
+  }
 
   Ok(())
 }
