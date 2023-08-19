@@ -1,10 +1,11 @@
 use anilife_rs::{api::LifeClient, dl::Downloader};
+
 #[macro_use]
 extern crate log;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  env_logger::init();
+  let _log2 = log2::open(".log.tmp").start();
 
   let client = LifeClient::new();
   let downloader = Downloader::new();

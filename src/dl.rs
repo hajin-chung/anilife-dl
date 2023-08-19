@@ -1,10 +1,13 @@
 // parse m3u8 and download
+use std::{
+  error::Error,
+  fs::{self, File},
+  io::{self, Write},
+};
 
-use std::{fs::File, io::Write};
-
-use log::info;
+use futures::future::join_all;
+use log::{debug, info, warn};
 use reqwest::{header, Client};
-use tokio::task::JoinSet;
 
 use crate::{api, AsyncResult};
 
@@ -29,7 +32,8 @@ impl Downloader {
     Self { client }
   }
 
-  async fn download_segment(index: i32, url: String) -> AsyncResult<i32> {
+  async fn download_segment(index: i32, url: String) -> Result<String, Box<dyn Error>> {
+    info!("START segment {}", index);
     let client = reqwest::Client::new();
     let bytes = client
       .get(url)
@@ -40,12 +44,13 @@ impl Downloader {
       .await?
       .bytes()
       .await?;
+    let filename = format!("./segments/seg{:04}.ts", index);
 
-    let mut file = File::create(format!("./segments/seg{:04}.ts", index)).unwrap();
+    let mut file = File::create(&filename).unwrap();
     let encrypted = bytes.to_vec();
     file.write_all(&encrypted).unwrap();
-    info!("segment {} length: {}", index, bytes.len());
-    Ok(index)
+    info!("END segment {} length: {}", index, bytes.len());
+    Ok(filename)
   }
 
   pub async fn start(&self, url: &String) -> AsyncResult<()> {
@@ -74,15 +79,39 @@ impl Downloader {
       index += 1;
     }
 
-    info!("segment urls: {:?}", segment_urls);
+    debug!("segment urls: {:?}", segment_urls);
 
-    let mut set = JoinSet::new();
+    let mut handles = Vec::new();
     for (idx, segment_url) in segment_urls.iter().enumerate() {
       let url = segment_url.clone();
-      set.spawn(async move { Downloader::download_segment(idx as i32, url) });
+      let handle = Downloader::download_segment(idx as i32, url);
+      handles.push(handle);
     }
 
-    while let Some(_index) = set.join_next().await {}
+    let segment_res = join_all(handles).await;
+
+    fs::remove_file("./segments/all.ts").unwrap_or({
+      warn!("all.ts does not exist (this is expected)");
+    });
+
+    let mut all_ts = fs::OpenOptions::new()
+      .create_new(true)
+      .append(true)
+      .open("./segments/all.ts")
+      .unwrap();
+
+    for segment in segment_res {
+      match segment {
+        Ok(filename) => {
+          debug!("COMBINE {}", filename);
+          let mut segment_ts = fs::OpenOptions::new().read(true).open(filename).unwrap();
+          io::copy(&mut segment_ts, &mut all_ts).unwrap();
+        }
+        Err(e) => {
+          debug!("{}", e);
+        }
+      }
+    }
 
     Ok(())
   }
