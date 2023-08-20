@@ -53,16 +53,7 @@ impl Downloader {
     Ok(filename)
   }
 
-  pub async fn start(&self, url: &String, filename: &String) -> AsyncResult<()> {
-    let content = self
-      .client
-      .get(url)
-      .header("Referer", api::HOST)
-      .send()
-      .await?
-      .text()
-      .await?;
-
+  fn parse_hls(content: String) -> Vec<String> {
     let lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
     let n = lines.len();
     let mut index = 0;
@@ -80,6 +71,20 @@ impl Downloader {
     }
 
     debug!("segment urls: {:?}", segment_urls);
+    segment_urls
+  }
+
+  pub async fn start(&self, url: &String, filename: &String) -> AsyncResult<()> {
+    let content = self
+      .client
+      .get(url)
+      .header("Referer", api::HOST)
+      .send()
+      .await?
+      .text()
+      .await?;
+
+    let segment_urls = Downloader::parse_hls(content);
 
     let mut handles = Vec::new();
     for (idx, segment_url) in segment_urls.iter().enumerate() {
