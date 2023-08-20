@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         inquire::InquireError::OperationInterrupted => break,
         _ => {
           debug!("{}", error);
-          continue
+          continue;
         }
       },
     };
@@ -27,27 +27,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (anime_list, search_url) = client.search(&query).await?;
     info!("{:?}", anime_list);
 
-    let anime = match Select::new("Animes", anime_list).prompt() {
+    let prompt = format!("Animes ({})", anime_list.len()).to_string();
+    let anime = match Select::new(&prompt, anime_list).prompt() {
       Ok(a) => a,
       Err(error) => match error {
         inquire::InquireError::OperationCanceled => break,
         inquire::InquireError::OperationInterrupted => break,
         _ => {
           debug!("{}", error);
-          continue
+          continue;
         }
       },
     };
 
     let (episode_list, episode_url) = client.get_episodes(&anime.url, &search_url).await?;
-    let episode = match Select::new("Episodes", episode_list).prompt() {
+    let prompt = format!("{} ({})", anime.title, episode_list.len()).to_string();
+    let episode = match Select::new(&prompt, episode_list).prompt() {
       Ok(e) => e,
       Err(error) => match error {
         inquire::InquireError::OperationCanceled => break,
         inquire::InquireError::OperationInterrupted => break,
         _ => {
           debug!("{}", error);
-          continue
+          continue;
         }
       },
     };
