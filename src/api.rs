@@ -1,7 +1,13 @@
-use std::fmt;
+use std::{
+  fmt,
+  fs::{self, File},
+  io::{self, Write},
+};
 
 use base64::{engine::general_purpose, Engine as _};
-use log::{debug, warn};
+use futures::{stream::FuturesUnordered, StreamExt};
+use indicatif::ProgressBar;
+use log::{debug, info, warn};
 use regex::Regex;
 use reqwest::Client;
 use scraper::{Html, Selector};
@@ -11,6 +17,9 @@ use crate::AsyncResult;
 
 pub const HOST: &str = "https://anilife.live";
 pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36";
+
+// const HLS_ENC_TAG: &str = "#EXT-X-KEY";
+const HLS_SEG_TAG: &str = "#EXTINF";
 
 pub fn build_url(path: &String) -> String {
   HOST.to_string() + path
@@ -192,4 +201,114 @@ pub async fn get_episode_hls(
   };
 
   Ok(hls_url.clone())
+}
+
+struct Segment {
+  index: i32,
+  filename: String,
+}
+
+pub async fn download_episode(client: &Client, url: &String, filename: &String) -> AsyncResult<()> {
+  let content = client
+    .get(url)
+    .header("Referer", HOST)
+    .send()
+    .await?
+    .text()
+    .await?;
+
+  let segment_urls = parse_hls(content);
+
+  let mut futures = FuturesUnordered::new();
+  for (idx, segment_url) in segment_urls.iter().enumerate() {
+    let url = segment_url.clone();
+    let handle = download_segment(idx as i32, url);
+    futures.push(handle);
+  }
+
+  let bar = ProgressBar::new(segment_urls.len() as u64);
+  let mut segments = Vec::new();
+  while let Some(segment) = futures.next().await {
+    bar.inc(1);
+    if segment.is_some() {
+      segments.push(segment.unwrap());
+    }
+  }
+  debug!("successful segments {}", segments.len());
+  bar.finish();
+
+  fs::remove_file("./segments/all.ts").unwrap_or({
+    warn!("all.ts does not exist (this is expected)");
+  });
+
+  let mut all_ts = fs::OpenOptions::new()
+    .create_new(true)
+    .append(true)
+    .open("./segments/all.ts")
+    .unwrap();
+
+  segments.sort_by_key(|a| a.index);
+  segments.iter().for_each(|segment| {
+    debug!("COMBINE {}", segment.filename);
+    let mut segment_ts = fs::OpenOptions::new()
+      .read(true)
+      .open(&segment.filename)
+      .unwrap();
+    io::copy(&mut segment_ts, &mut all_ts).unwrap();
+  });
+
+  match fs::rename("./segments/all.ts", format!("./{}.ts", filename)) {
+    Err(e) => debug!("{}", e),
+    Ok(_) => (),
+  }
+
+  Ok(())
+}
+
+async fn download_segment(index: i32, url: String) -> Option<Segment> {
+  info!("START segment {}", index);
+  let client = reqwest::Client::new();
+  let res = client
+    .get(url)
+    .header("User-Agent", USER_AGENT)
+    .header("Referer", HOST)
+    .header("Origin", HOST)
+    .send()
+    .await;
+
+  if res.is_err() {
+    return None;
+  }
+
+  let bytes = res.unwrap().bytes().await.unwrap();
+
+  let filename = format!("./segments/seg{:04}.ts", index);
+
+  let mut file = File::create(&filename).unwrap();
+  let encrypted = bytes.to_vec();
+  file.write_all(&encrypted).unwrap();
+  info!("END segment {} length: {}", index, bytes.len());
+
+  Some(Segment { index, filename })
+}
+
+fn parse_hls(content: String) -> Vec<String> {
+  let lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+  let n = lines.len();
+  let mut index = 0;
+  let mut segment_urls: Vec<String> = Vec::new();
+
+  while index < n {
+    let line = &lines[index];
+    if line.starts_with(HLS_SEG_TAG) {
+      index += 1;
+      let segment_url = &lines[index];
+      segment_urls.push(segment_url.clone());
+    }
+
+    index += 1;
+  }
+
+  debug!("segment urls: {:?}", segment_urls);
+  segment_urls
 }

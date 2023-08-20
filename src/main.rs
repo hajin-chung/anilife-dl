@@ -1,5 +1,5 @@
-use anilife_rs::{api, dl, http::create_http_client};
-use inquire::{Select, Text};
+use anilife_rs::{api, http::create_http_client};
+use inquire::{MultiSelect, Select, Text};
 
 #[macro_use]
 extern crate log;
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (episode_list, episode_url) = api::get_episodes(&client, &anime.url, &search_url).await?;
     let prompt = format!("{} ({})", anime.title, episode_list.len()).to_string();
-    let episode = match Select::new(&prompt, episode_list).prompt() {
+    let episodes = match MultiSelect::new(&prompt, episode_list).prompt() {
       Ok(e) => e,
       Err(error) => match error {
         inquire::InquireError::OperationCanceled => break,
@@ -53,10 +53,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       },
     };
 
-    let hls_url = api::get_episode_hls(&client, &episode.url, &episode_url).await?;
+    for episode in episodes {
+      let hls_url = api::get_episode_hls(&client, &episode.url, &episode_url).await?;
 
-    let filename = format!("{}-{}-{}", anime.title, episode.num, episode.title);
-    dl::download_episode(&client, &hls_url, &filename).await?;
+      let filename = format!("{}-{}-{}", anime.title, episode.num, episode.title);
+      api::download_episode(&client, &hls_url, &filename).await?;
+    }
   }
 
   Ok(())
