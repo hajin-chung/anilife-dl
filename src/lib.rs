@@ -1,5 +1,6 @@
 use std::error::Error;
 
+pub mod http;
 pub mod api;
 pub mod dl;
 

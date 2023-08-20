@@ -1,4 +1,4 @@
-use anilife_rs::{api::LifeClient, dl::Downloader};
+use anilife_rs::{api, dl, http::create_http_client};
 use inquire::{Select, Text};
 
 #[macro_use]
@@ -8,8 +8,7 @@ extern crate log;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let _log2 = log2::open(".log.tmp").start();
 
-  let client = LifeClient::new();
-  let downloader = Downloader::new();
+  let client = create_http_client();
 
   loop {
     let query = match Text::new("Search: ").prompt() {
@@ -24,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       },
     };
 
-    let (anime_list, search_url) = client.search(&query).await?;
+    let (anime_list, search_url) = api::search(&client, &query).await?;
     info!("{:?}", anime_list);
 
     let prompt = format!("Animes ({})", anime_list.len()).to_string();
@@ -40,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       },
     };
 
-    let (episode_list, episode_url) = client.get_episodes(&anime.url, &search_url).await?;
+    let (episode_list, episode_url) = api::get_episodes(&client, &anime.url, &search_url).await?;
     let prompt = format!("{} ({})", anime.title, episode_list.len()).to_string();
     let episode = match Select::new(&prompt, episode_list).prompt() {
       Ok(e) => e,
@@ -54,10 +53,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       },
     };
 
-    let hls_url = client.get_episode_hls(&episode.url, &episode_url).await?;
+    let hls_url = api::get_episode_hls(&client, &episode.url, &episode_url).await?;
 
     let filename = format!("{}-{}-{}", anime.title, episode.num, episode.title);
-    downloader.start(&hls_url, &filename).await?;
+    dl::download_episode(&client, &hls_url, &filename).await?;
   }
 
   Ok(())
