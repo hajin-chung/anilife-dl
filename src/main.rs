@@ -1,6 +1,6 @@
 use std::env;
 
-use anilife_rs::{api, http::create_http_client};
+use anilife_rs::{api, http::create_http_client, sanitize_filename};
 
 #[macro_use]
 extern crate log;
@@ -101,6 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let hls_url = api::get_episode_hls(&client, &episode.url, &anime.info.url).await?;
 
         let filename = format!("{}-{}-{}", anime.info.title, episode.num, episode.title);
+        let filename = sanitize_filename(&filename);
         api::download_episode(&client, &hls_url, &filename).await?;
       }
       _ => {}

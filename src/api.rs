@@ -1,9 +1,14 @@
 use std::{
   fs::{self, File},
-  io::{self, Write},
+  io::{self, stdout, Write},
 };
 
 use base64::{engine::general_purpose, Engine as _};
+use crossterm::{
+  cursor, style,
+  terminal::{Clear, ClearType},
+  QueueableCommand,
+};
 use futures::{stream::FuturesUnordered, StreamExt};
 use log::{debug, info, warn};
 use regex::Regex;
@@ -190,12 +195,24 @@ pub async fn get_episode_hls(
   Ok(hls_url.clone())
 }
 
+fn print_progress(filename: &String, count: usize, len: usize) -> io::Result<()> {
+  let mut stdout = stdout();
+  stdout
+    .queue(cursor::RestorePosition)?
+    .queue(Clear(ClearType::CurrentLine))?
+    .queue(style::Print(format!("{} [{}/{}]", filename, count, len)))?;
+  stdout.flush()?;
+  Ok(())
+}
+
 struct Segment {
   index: i32,
   filename: String,
 }
 
 pub async fn download_episode(client: &Client, url: &String, filename: &String) -> AsyncResult<()> {
+  fs::create_dir_all("./segments").unwrap();
+
   let content = client
     .get(url)
     .header("Referer", HOST)
@@ -213,15 +230,20 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
     futures.push(handle);
   }
 
+  let mut count: usize = 0;
   let mut segments = Vec::new();
+  let mut stdout = stdout();
+
+  stdout.queue(cursor::SavePosition)?;
   while let Some(segment) = futures.next().await {
     if segment.is_some() {
+      count += 1;
+      print_progress(filename, count, segment_urls.len())?;
       segments.push(segment.unwrap());
     }
   }
   debug!("successful segments {}", segments.len());
 
-  fs::create_dir_all("./segments").unwrap();
   fs::remove_file("./segments/all.ts").unwrap_or({
     warn!("all.ts does not exist (this is expected)");
   });
