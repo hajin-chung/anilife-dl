@@ -1,63 +1,110 @@
+use std::env;
+
 use anilife_rs::{api, http::create_http_client};
-use inquire::{MultiSelect, Select, Text};
 
 #[macro_use]
 extern crate log;
 
+fn print_help() {
+  println!("anime-dl");
+  println!("Usage: ");
+  println!("  anime-dl --search <query>");
+  println!("  anime-dl --list <anime_id>");
+  println!("  anime-dl --download <anime_id> <episode_num>");
+  println!("Options: ");
+  println!("  -h --help     Show this screen");
+  println!("  -s --search   Search anime with title");
+  println!("  -l --list     List episodes of anime");
+  println!("  -d --download  Download episode of that index");
+}
+
+fn print_error(message: &str) {
+  error!("{}", message);
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let _log2 = log2::open(".log.tmp").start();
-
   let client = create_http_client();
+  let mut args = env::args();
+  println!("{:?}", args);
 
-  loop {
-    let query = match Text::new("Search: ").prompt() {
-      Ok(q) => q,
-      Err(error) => match error {
-        inquire::InquireError::OperationCanceled => break,
-        inquire::InquireError::OperationInterrupted => break,
-        _ => {
-          debug!("{}", error);
-          continue;
-        }
-      },
-    };
+  if args.len() == 1 {
+    print_help();
+    return Ok(());
+  }
 
-    let (anime_list, search_url) = api::search(&client, &query).await?;
-    info!("{:?}", anime_list);
+  while let Some(arg) = args.next() {
+    match arg.as_str() {
+      "-h" | "--help" => {
+        print_help();
+        break;
+      }
+      "-s" | "--search" => {
+        let query = match args.next() {
+          Some(q) => q,
+          None => {
+            print_error("Search query is missing");
+            break;
+          }
+        };
 
-    let prompt = format!("Animes ({})", anime_list.len()).to_string();
-    let anime = match Select::new(&prompt, anime_list).prompt() {
-      Ok(a) => a,
-      Err(error) => match error {
-        inquire::InquireError::OperationCanceled => break,
-        inquire::InquireError::OperationInterrupted => break,
-        _ => {
-          debug!("{}", error);
-          continue;
-        }
-      },
-    };
+        let (anime_list, _search_url) = api::search(&client, &query).await?;
+        println!("Results on {}", query);
+        anime_list.iter().for_each(|anime| {
+          println!("{:4} | {}", anime.id, anime.title);
+        })
+      }
+      "-l" | "--list" => {
+        let anime_id = match args.next() {
+          Some(i) => i,
+          None => {
+            print_error("Anime id is missing");
+            break;
+          }
+        };
+        let anime = api::get_anime(&client, &anime_id).await?;
 
-    let (episode_list, episode_url) = api::get_episodes(&client, &anime.url, &search_url).await?;
-    let prompt = format!("{} ({})", anime.title, episode_list.len()).to_string();
-    let episodes = match MultiSelect::new(&prompt, episode_list).prompt() {
-      Ok(e) => e,
-      Err(error) => match error {
-        inquire::InquireError::OperationCanceled => break,
-        inquire::InquireError::OperationInterrupted => break,
-        _ => {
-          debug!("{}", error);
-          continue;
-        }
-      },
-    };
+        println!("{} episodes", anime_id);
+        anime.episodes.iter().for_each(|episode| {
+          println!("{:4} | {}", episode.num, episode.title);
+        })
+      }
+      "-d" | "--download" => {
+        let anime_id = match args.next() {
+          Some(i) => i,
+          None => {
+            print_error("Anime id is missing");
+            break;
+          }
+        };
+        let episode_num = match args.next() {
+          Some(i) => i,
+          None => {
+            print_error("Episdoe num is missing");
+            break;
+          }
+        };
 
-    for episode in episodes {
-      let hls_url = api::get_episode_hls(&client, &episode.url, &episode_url).await?;
+        let anime = api::get_anime(&client, &anime_id).await?;
+        let episode = match anime
+          .episodes
+          .iter()
+          .find(|episode| episode.num == episode_num)
+        {
+          Some(e) => e,
+          None => {
+            print_error(format!("Episode with episode num {} not found", episode_num).as_str());
+            break;
+          }
+        };
 
-      let filename = format!("{}-{}-{}", anime.title, episode.num, episode.title);
-      api::download_episode(&client, &hls_url, &filename).await?;
+        let hls_url = api::get_episode_hls(&client, &episode.url, &anime.info.url).await?;
+
+        let filename = format!("{}-{}", episode.num, episode.title);
+        api::download_episode(&client, &hls_url, &filename).await?;
+      }
+      _ => {}
     }
   }
 

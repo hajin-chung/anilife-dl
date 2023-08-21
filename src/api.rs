@@ -1,12 +1,10 @@
 use std::{
-  fmt,
   fs::{self, File},
   io::{self, Write},
 };
 
 use base64::{engine::general_purpose, Engine as _};
 use futures::{stream::FuturesUnordered, StreamExt};
-use indicatif::ProgressBar;
 use log::{debug, info, warn};
 use regex::Regex;
 use reqwest::Client;
@@ -30,42 +28,20 @@ pub fn build_url_from_str(path: &str) -> String {
 }
 
 pub struct LifeAnimeInfo {
+  pub id: String,
   pub title: String,
   pub url: String,
+}
+
+pub struct LifeAnime {
+  pub info: LifeAnimeInfo,
+  pub episodes: Vec<LifeEpisodeInfo>,
 }
 
 pub struct LifeEpisodeInfo {
   pub title: String,
   pub url: String,
   pub num: String,
-}
-
-impl fmt::Display for LifeAnimeInfo {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}", self.title)
-  }
-}
-
-impl fmt::Display for LifeEpisodeInfo {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{} - {}", self.num, self.title)
-  }
-}
-
-impl fmt::Debug for LifeAnimeInfo {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "anime {{ title: {}, url: {} }}", self.title, self.url)
-  }
-}
-
-impl fmt::Debug for LifeEpisodeInfo {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(
-      f,
-      "anime {{ title: {}, url: {}, num: {} }}",
-      self.title, self.url, self.num
-    )
-  }
 }
 
 pub async fn search(client: &Client, query: &String) -> AsyncResult<(Vec<LifeAnimeInfo>, String)> {
@@ -90,30 +66,34 @@ pub async fn search(client: &Client, query: &String) -> AsyncResult<(Vec<LifeAni
       let url_str = url_element.unwrap().value().attr("href").unwrap_or("");
       let url = build_url_from_str(url_str);
       let title = title_element.unwrap().inner_html();
+      let id = url.split("/").last().unwrap_or("0").to_string();
 
-      LifeAnimeInfo { url, title }
+      LifeAnimeInfo { id, url, title }
     })
     .collect();
 
   Ok((anime, url))
 }
 
-pub async fn get_episodes(
-  client: &Client,
-  url: &String,
-  referer: &String,
-) -> AsyncResult<(Vec<LifeEpisodeInfo>, String)> {
-  let res = client.get(url).header("Referer", referer).send().await?;
-  let episode_url = res.url().to_string();
+pub async fn get_anime(client: &Client, id: &String) -> AsyncResult<LifeAnime> {
+  let url = format!("https://anilife.live/detail/id/{}", id).to_string();
+  let res = client.get(url).send().await?;
+  let anime_url = res.url().to_string();
   let html = res.text().await?;
   let document = Html::parse_document(&html);
 
+  let anime_title_selector = Selector::parse(".entry-title").unwrap();
   let selector = Selector::parse(".eplister li").unwrap();
   let a_selector = Selector::parse("a").unwrap();
   let num_selector = Selector::parse(".epl-num").unwrap();
   let title_selector = Selector::parse(".epl-title").unwrap();
 
-  let episode: Vec<LifeEpisodeInfo> = document
+  let title = match document.select(&anime_title_selector).next() {
+    Some(e) => e.inner_html(),
+    None => "Unkown Title".to_string(),
+  };
+
+  let episodes: Vec<LifeEpisodeInfo> = document
     .select(&selector)
     .map(|elem| {
       let url_elem = elem.select(&a_selector).next();
@@ -137,7 +117,14 @@ pub async fn get_episodes(
     })
     .collect();
 
-  Ok((episode, episode_url))
+  Ok(LifeAnime {
+    info: LifeAnimeInfo {
+      id: id.to_string(),
+      title,
+      url: anime_url,
+    },
+    episodes,
+  })
 }
 
 pub async fn get_episode_hls(
@@ -226,16 +213,13 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
     futures.push(handle);
   }
 
-  let bar = ProgressBar::new(segment_urls.len() as u64);
   let mut segments = Vec::new();
   while let Some(segment) = futures.next().await {
-    bar.inc(1);
     if segment.is_some() {
       segments.push(segment.unwrap());
     }
   }
   debug!("successful segments {}", segments.len());
-  bar.finish();
 
   fs::remove_file("./segments/all.ts").unwrap_or({
     warn!("all.ts does not exist (this is expected)");
