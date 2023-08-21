@@ -27,7 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let _log2 = log2::open(".log.tmp").start();
   let client = create_http_client();
   let mut args = env::args();
-  println!("{:?}", args);
 
   if args.len() == 1 {
     print_help();
@@ -101,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let hls_url = api::get_episode_hls(&client, &episode.url, &anime.info.url).await?;
 
-        let filename = format!("{}-{}", episode.num, episode.title);
+        let filename = format!("{}-{}-{}", anime.info.title, episode.num, episode.title);
         api::download_episode(&client, &hls_url, &filename).await?;
       }
       _ => {}

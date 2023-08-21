@@ -221,6 +221,7 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
   }
   debug!("successful segments {}", segments.len());
 
+  fs::create_dir_all("./segments").unwrap();
   fs::remove_file("./segments/all.ts").unwrap_or({
     warn!("all.ts does not exist (this is expected)");
   });
@@ -245,6 +246,8 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
     Err(e) => debug!("{}", e),
     Ok(_) => (),
   }
+
+  fs::remove_dir_all("./segments")?;
 
   Ok(())
 }
