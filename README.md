@@ -11,10 +11,11 @@ Usage:
   anime-dl --list <anime_id>
   anime-dl --download <anime_id> <episode_num>
 Options:
-  -h --help     Show this screen
-  -s --search   Search anime with title
-  -l --list     List episodes of anime
+  -h --help      Show this screen
+  -s --search    Search anime with title
+  -a --anime     Select anime with id
   -d --download  Download episode of that index
+  --download-all Download all episodes in anime
 ```
 
 ## TODO

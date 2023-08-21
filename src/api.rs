@@ -254,6 +254,7 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
     .open("./segments/all.ts")
     .unwrap();
 
+  println!("\nCombining...");
   segments.sort_by_key(|a| a.index);
   segments.iter().for_each(|segment| {
     debug!("COMBINE {}", segment.filename);
