@@ -16,3 +16,10 @@ Options:
   -l --list     List episodes of anime
   -d --download  Download episode of that index
 ```
+
+## TODO
+
+- download entire anime
+- keep track of episodes download
+- create web interface
+- auto upload to youtube
