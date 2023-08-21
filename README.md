@@ -8,19 +8,19 @@ thin layer over [anilife.live](https://anilife.live/)
 anime-dl
 Usage:
   anime-dl --search <query>
-  anime-dl --list <anime_id>
-  anime-dl --download <anime_id> <episode_num>
+  anime-dl --anime <anime_id> --list
+  anime-dl --anime <anime_id> --<episode_num1>,<episode_num2>,...
+  anime-dl --anime <anime_id> --all
 Options:
   -h --help      Show this screen
   -s --search    Search anime with title
-  -a --anime     Select anime with id
+  -l --list      List episodes of anime
   -d --download  Download episode of that index
-  --download-all Download all episodes in anime
+  --all          Download all episodes
 ```
 
 ## TODO
 
-- download entire anime
 - keep track of episodes download
 - create web interface
 - auto upload to youtube
