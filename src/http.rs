@@ -8,7 +8,6 @@ pub fn create_http_client() -> Client {
     "User-Agent",
     header::HeaderValue::from_static(api::USER_AGENT),
   );
-  let client = Client::builder().default_headers(headers).build().unwrap();
 
-  client
+  Client::builder().default_headers(headers).build().unwrap()
 }

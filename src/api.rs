@@ -71,7 +71,7 @@ pub async fn search(client: &Client, query: &String) -> AsyncResult<(Vec<LifeAni
       let url_str = url_element.unwrap().value().attr("href").unwrap_or("");
       let url = build_url_from_str(url_str);
       let title = title_element.unwrap().inner_html();
-      let id = url.split("/").last().unwrap_or("0").to_string();
+      let id = url.split('/').last().unwrap_or("\0").to_string();
 
       LifeAnimeInfo { id, url, title }
     })
@@ -81,7 +81,7 @@ pub async fn search(client: &Client, query: &String) -> AsyncResult<(Vec<LifeAni
 }
 
 pub async fn get_anime(client: &Client, id: &String) -> AsyncResult<LifeAnime> {
-  let url = format!("https://anilife.live/detail/id/{}", id).to_string();
+  let url = format!("https://anilife.live/detail/id/{}", id);
   let res = client.get(url).send().await?;
   let anime_url = res.url().to_string();
   let html = res.text().await?;
@@ -150,7 +150,7 @@ pub async fn get_episode_hls(
     .map(|caps| caps["path"].to_string())
     .collect();
 
-  if player_urls.len() == 0 {
+  if player_urls.is_empty() {
     warn!("no players");
     return Err("no players".into());
   }
@@ -241,7 +241,11 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
       segments.push(segment.unwrap());
     }
   }
-  info!("successful segments {} / {}", segments.len(), segment_urls.len());
+  info!(
+    "successful segments {} / {}",
+    segments.len(),
+    segment_urls.len()
+  );
 
   fs::remove_file("./segments/all.ts").unwrap_or({
     warn!("all.ts does not exist (this is expected)");
@@ -264,9 +268,8 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
     io::copy(&mut segment_ts, &mut all_ts).unwrap();
   });
 
-  match fs::rename("./segments/all.ts", format!("./{}.ts", filename)) {
-    Err(e) => debug!("{}", e),
-    Ok(_) => (),
+  if let Err(e) = fs::rename("./segments/all.ts", format!("./{}.ts", filename)) {
+    debug!("{}", e);
   }
 
   fs::remove_dir_all("./segments")?;

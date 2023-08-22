@@ -80,7 +80,7 @@ fn parse_args(mut args: Args) -> Result<(CommandType, Vec<String>), String> {
             return Err("error".to_string());
           }
         };
-        let episode_num_vec: Vec<String> = episode_nums.split(",").map(|e| e.to_string()).collect();
+        let episode_num_vec: Vec<String> = episode_nums.split(',').map(|e| e.to_string()).collect();
 
         params = [params, episode_num_vec].concat();
       }
@@ -91,7 +91,7 @@ fn parse_args(mut args: Args) -> Result<(CommandType, Vec<String>), String> {
     }
   }
 
-  return Ok((command_type, params));
+  Ok((command_type, params))
 }
 
 #[tokio::main]
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     CommandType::Search => {
       let query = &args[0];
 
-      let (anime_list, _search_url) = api::search(&client, &query).await?;
+      let (anime_list, _search_url) = api::search(&client, query).await?;
       println!("Results on {}", query);
       anime_list.iter().for_each(|anime| {
         println!("{:4} | {}", anime.id, anime.title);
@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     CommandType::List => {
       let anime_id = &args[0];
-      let anime = api::get_anime(&client, &anime_id).await?;
+      let anime = api::get_anime(&client, anime_id).await?;
 
       println!("{} episodes", anime_id);
       anime.episodes.iter().for_each(|episode| {
@@ -125,9 +125,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     CommandType::Download => {
       let anime_id = &args[0];
-      for episode_index in 1..args.len() {
-        let episode_num = &args[episode_index];
-        let anime = api::get_anime(&client, &anime_id).await?;
+
+      for episode_num in args.iter().skip(1) {
+        let anime = api::get_anime(&client, anime_id).await?;
         let episode = match anime
           .episodes
           .iter()
@@ -149,7 +149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     CommandType::DownloadAll => {
       let anime_id = &args[0];
-      let anime = api::get_anime(&client, &anime_id).await?;
+      let anime = api::get_anime(&client, anime_id).await?;
       for episode in anime.episodes {
         let hls_url = api::get_episode_hls(&client, &episode.url, &anime.info.url).await?;
 
