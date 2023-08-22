@@ -241,7 +241,7 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
       segments.push(segment.unwrap());
     }
   }
-  info!("successful segments {}", segments.len());
+  info!("successful segments {} / {}", segments.len(), segment_urls.len());
 
   fs::remove_file("./segments/all.ts").unwrap_or({
     warn!("all.ts does not exist (this is expected)");
