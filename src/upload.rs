@@ -23,7 +23,7 @@ async fn get_access_token() -> AsyncResult<String> {
   let redirect_uri = "http://localhost:4713/callback";
   let scope = "https://www.googleapis.com/auth/youtube.upload";
   let auth_uri = format!("https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={}&redirect_uri={}&scope={}", CLIENT_ID, redirect_uri, scope);
-  println!("auth url: {}", auth_uri);
+  println!("GOTO: {}", auth_uri);
 
   let listener = TcpListener::bind(LOCALHOST).unwrap();
   let mut code: String = String::new();
@@ -64,7 +64,7 @@ async fn get_access_token() -> AsyncResult<String> {
   let access_token = match &res["access_token"] {
     Value::String(s) => s,
     _ => {
-      return Err("test".to_string().into());
+      return Err("access token parsing error".to_string().into());
     }
   };
 
@@ -73,7 +73,7 @@ async fn get_access_token() -> AsyncResult<String> {
 
 pub async fn upload(filename: &String) -> AsyncResult<()> {
   let access_token = get_access_token().await?;
-  println!("{}", access_token);
+  println!("got access token");
 
   // TODO: stream content to body
   let mut video_file = File::options().read(true).open(filename).unwrap();
@@ -88,6 +88,7 @@ pub async fn upload(filename: &String) -> AsyncResult<()> {
     r#"{{"snippet":{{"title":"{}","description":"","tags":[],"categoryId":22}},"status":{{"privacyStatus":"private","embeddable":true,"license":"youtube"}}}}"#,
     video_title
   );
+  println!("getting upload url");
   let init_res = client
     .post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status,contentDetails")
     .header("Authorization", format!("Bearer {access_token}"))
@@ -96,10 +97,14 @@ pub async fn upload(filename: &String) -> AsyncResult<()> {
     .header("X-Upload-Content-Length", video_length)
     .header("X-Upload-Content-Type", video_type)
     .body(init_body).send().await?;
-  let headers = init_res.headers();
+  let headers = init_res.headers().clone();
+  let body = init_res.text().await?;
+  debug!("upload url body: {}", body);
+
   let upload_url = headers.get("Location").unwrap().to_str().unwrap();
   info!("upload url {}", upload_url);
 
+  println!("uploading...");
   // TODO: retry logic
   let upload_res = client
     .put(upload_url)
@@ -109,6 +114,7 @@ pub async fn upload(filename: &String) -> AsyncResult<()> {
     .send()
     .await?;
   let status = upload_res.status();
+  println!("done");
 
   match status {
     StatusCode::OK => {
