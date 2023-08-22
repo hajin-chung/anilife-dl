@@ -154,7 +154,7 @@ pub async fn get_episode_hls(
     warn!("no players");
     return Err("no players".into());
   }
-  debug!("{:?}", player_urls);
+  info!("{:?}", player_urls);
 
   let player_url = &player_urls[0];
   let player_html = client
@@ -185,7 +185,6 @@ pub async fn get_episode_hls(
     .await?
     .json::<serde_json::Value>()
     .await?;
-  debug!("{}", video_data);
 
   let hls_url = match &video_data[0]["url"] {
     Value::String(url) => url,
@@ -242,7 +241,7 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
       segments.push(segment.unwrap());
     }
   }
-  debug!("successful segments {}", segments.len());
+  info!("successful segments {}", segments.len());
 
   fs::remove_file("./segments/all.ts").unwrap_or({
     warn!("all.ts does not exist (this is expected)");
@@ -257,7 +256,7 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
   println!("\nCombining...");
   segments.sort_by_key(|a| a.index);
   segments.iter().for_each(|segment| {
-    debug!("COMBINE {}", segment.filename);
+    info!("COMBINE {}", segment.filename);
     let mut segment_ts = fs::OpenOptions::new()
       .read(true)
       .open(&segment.filename)
@@ -319,6 +318,5 @@ fn parse_hls(content: String) -> Vec<String> {
     index += 1;
   }
 
-  debug!("segment urls: {:?}", segment_urls);
   segment_urls
 }
