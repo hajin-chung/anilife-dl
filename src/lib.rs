@@ -4,6 +4,7 @@ use regex::Regex;
 
 pub mod api;
 pub mod http;
+pub mod upload;
 
 pub type AsyncResult<T> = Result<T, Box<dyn Error>>;
 
