@@ -209,7 +209,11 @@ struct Segment {
   filename: String,
 }
 
-pub async fn download_episode(client: &Client, url: &String, filename: &String) -> AsyncResult<()> {
+pub async fn download_episode(
+  client: &Client,
+  url: &String,
+  filename: &String,
+) -> AsyncResult<()> {
   fs::create_dir_all("./segments").unwrap();
 
   let content = client
@@ -237,7 +241,7 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
   while let Some(segment) = futures.next().await {
     if segment.is_some() {
       count += 1;
-      print_progress(filename, count, segment_urls.len())?;
+      print_progress(&filename, count, segment_urls.len())?;
       segments.push(segment.unwrap());
     }
   }
@@ -268,7 +272,7 @@ pub async fn download_episode(client: &Client, url: &String, filename: &String) 
     io::copy(&mut segment_ts, &mut all_ts).unwrap();
   });
 
-  if let Err(e) = fs::rename("./segments/all.ts", format!("./{}.ts", filename)) {
+  if let Err(e) = fs::rename("./segments/all.ts", filename) {
     debug!("{}", e);
   }
 

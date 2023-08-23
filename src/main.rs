@@ -1,4 +1,4 @@
-use std::{env, error::Error};
+use std::{env, error::Error, fs};
 
 use http::create_http_client;
 use regex::Regex;
@@ -90,8 +90,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           }
         };
 
-        let filename = format!("{}-{}-{}", anime.info.title, episode.num, episode.title);
+        let path = format!("./{}", anime.info.title);
+        let filename =
+          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title).to_string();
         let filename = sanitize_filename(&filename);
+        fs::create_dir_all(&path).unwrap();
+        let filename = format!("{}/{}", path, filename);
         api::download_episode(&client, &hls_url, &filename).await?;
       }
     }
@@ -113,8 +117,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           }
         };
 
-        let filename = format!("{}-{}-{}", anime.info.title, episode.num, episode.title);
+        let path = format!("./{}", anime.info.title);
+        let filename =
+          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title).to_string();
         let filename = sanitize_filename(&filename);
+        fs::create_dir_all(&path).unwrap();
+        let filename = format!("{}/{}", path, filename);
         api::download_episode(&client, &hls_url, &filename).await?;
       }
     }
