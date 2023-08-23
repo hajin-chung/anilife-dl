@@ -12,7 +12,8 @@ use serde_json::Value;
 
 use crate::AsyncResult;
 
-const CLIENT_ID: &str = "553403901759-bq0ckshrbpkttm4d6mv260uaa5l1i1l3.apps.googleusercontent.com";
+const CLIENT_ID: &str =
+  "553403901759-bq0ckshrbpkttm4d6mv260uaa5l1i1l3.apps.googleusercontent.com";
 const LOCALHOST: &str = "127.0.0.1:4713";
 
 async fn get_access_token() -> AsyncResult<String> {

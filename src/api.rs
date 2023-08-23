@@ -1,6 +1,7 @@
 use std::{
   fs::{self, File},
   io::{self, stdout, Write},
+  sync::Arc,
 };
 
 use base64::{engine::general_purpose, Engine as _};
@@ -9,12 +10,12 @@ use crossterm::{
   terminal::{Clear, ClearType},
   QueueableCommand,
 };
-use futures::{stream::FuturesUnordered, StreamExt};
 use log::{debug, info, warn};
 use regex::Regex;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde_json::Value;
+use tokio::sync::Semaphore;
 
 use crate::AsyncResult;
 
@@ -49,7 +50,10 @@ pub struct LifeEpisodeInfo {
   pub num: String,
 }
 
-pub async fn search(client: &Client, query: &String) -> AsyncResult<(Vec<LifeAnimeInfo>, String)> {
+pub async fn search(
+  client: &Client,
+  query: &String,
+) -> AsyncResult<(Vec<LifeAnimeInfo>, String)> {
   let search_path = format!("/search?keyword={}", query);
   let url = build_url(&search_path);
   let html = client.get(&url).send().await?.text().await?;
@@ -66,7 +70,9 @@ pub async fn search(client: &Client, query: &String) -> AsyncResult<(Vec<LifeAni
       let title_element = element.select(&title_selector).next();
       (url_element, title_element)
     })
-    .filter(|(url_element, title_element)| url_element.is_some() && title_element.is_some())
+    .filter(|(url_element, title_element)| {
+      url_element.is_some() && title_element.is_some()
+    })
     .map(|(url_element, title_element)| {
       let url_str = url_element.unwrap().value().attr("href").unwrap_or("");
       let url = build_url_from_str(url_str);
@@ -144,7 +150,8 @@ pub async fn get_episode_hls(
     .await?
     .text()
     .await?;
-  let player_url_re = Regex::new(r#"(?<path>https:\/\/anilife.live\/h\/live\?p=.+)""#).unwrap();
+  let player_url_re =
+    Regex::new(r#"(?<path>https:\/\/anilife.live\/h\/live\?p=.+)""#).unwrap();
   let player_urls: Vec<String> = player_url_re
     .captures_iter(&episode_html)
     .map(|caps| caps["path"].to_string())
@@ -194,7 +201,11 @@ pub async fn get_episode_hls(
   Ok(hls_url.clone())
 }
 
-fn print_progress(filename: &String, count: usize, len: usize) -> io::Result<()> {
+fn print_progress(
+  filename: &String,
+  count: usize,
+  len: usize,
+) -> io::Result<()> {
   let mut stdout = stdout();
   stdout
     .queue(cursor::RestorePosition)?
@@ -213,9 +224,11 @@ pub async fn download_episode(
   client: &Client,
   url: &String,
   filename: &String,
+  max_concurrent: usize,
 ) -> AsyncResult<()> {
   fs::create_dir_all("./segments").unwrap();
 
+  let semaphore = Arc::new(Semaphore::new(max_concurrent));
   let content = client
     .get(url)
     .header("Referer", HOST)
@@ -226,11 +239,14 @@ pub async fn download_episode(
 
   let segment_urls = parse_hls(content);
 
-  let mut futures = FuturesUnordered::new();
+  let mut tasks = vec![];
   for (idx, segment_url) in segment_urls.iter().enumerate() {
     let url = segment_url.clone();
-    let handle = download_segment(idx as i32, url);
-    futures.push(handle);
+    let semaphore_cloned = semaphore.clone();
+    let task = tokio::spawn(async move {
+      download_segment(idx as i32, url, &semaphore_cloned).await
+    });
+    tasks.push(task);
   }
 
   let mut count: usize = 0;
@@ -238,13 +254,13 @@ pub async fn download_episode(
   let mut stdout = stdout();
 
   stdout.queue(cursor::SavePosition)?;
-  while let Some(segment) = futures.next().await {
-    if segment.is_some() {
-      count += 1;
-      print_progress(&filename, count, segment_urls.len())?;
-      segments.push(segment.unwrap());
-    }
+  for task in tasks {
+    let segment = task.await?.unwrap();
+    count += 1;
+    print_progress(&filename, count, segment_urls.len())?;
+    segments.push(segment);
   }
+
   info!(
     "successful segments {} / {}",
     segments.len(),
@@ -281,7 +297,13 @@ pub async fn download_episode(
   Ok(())
 }
 
-async fn download_segment(index: i32, url: String) -> Option<Segment> {
+async fn download_segment(
+  index: i32,
+  url: String,
+  semaphore: &Semaphore,
+) -> Option<Segment> {
+  let _permit = semaphore.acquire().await.unwrap();
+
   info!("START segment {}", index);
   let client = reqwest::Client::new();
   let res = client

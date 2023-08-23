@@ -23,4 +23,3 @@ Options:
 
 - keep track of episodes download
 - create web interface
-- auto upload to youtube

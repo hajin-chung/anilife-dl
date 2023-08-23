@@ -17,28 +17,47 @@ pub fn print_help() {
   println!("  -u --upload    Upload file to youtube");
 }
 
-pub enum Command {
-  Search(String),
-  List(String),
-  Download(String, Vec<String>),
-  DownloadAll(String),
-  Upload(String),
+pub enum CommandType {
+  Search,
+  List,
+  Download,
+  DownloadAll,
+  Upload,
   Help,
-  None,
 }
+
+#[derive(Default)]
+pub struct CommandArgs {
+  pub anime_id: String,
+  pub query: String,
+  pub episode_nums: Vec<String>,
+  pub filename: String,
+  pub max_concurrent: usize,
+}
+
+pub struct Command {
+  pub t: CommandType,
+  pub args: CommandArgs,
+}
+
+const DEFAULT_MAX_CONCURRENT: usize = 100;
 
 pub fn parse_args(mut args: Args) -> Result<Command, String> {
   if args.len() == 1 {
-    return Ok(Command::Help);
+    return Ok(Command {
+      t: CommandType::Help,
+      args: CommandArgs::default(),
+    });
   }
 
-  let mut command = Command::None;
-  let mut selected_anime_id = "".to_string();
+  let mut command_type = CommandType::Help;
+  let mut command_args = CommandArgs::default();
+  command_args.max_concurrent = DEFAULT_MAX_CONCURRENT;
 
   while let Some(arg) = args.next() {
     match arg.as_str() {
       "-h" | "--help" => {
-        command = Command::Help;
+        command_type = CommandType::Help;
       }
       "-s" | "--search" => {
         let query = match args.next() {
@@ -48,7 +67,9 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
             return Err("error".to_string());
           }
         };
-        command = Command::Search(query);
+
+        command_type = CommandType::Search;
+        command_args.query = query;
       }
       "-a" | "--anime" => {
         let anime_id = match args.next() {
@@ -58,11 +79,12 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
             return Err("error".to_string());
           }
         };
-        selected_anime_id = anime_id;
-        command = Command::List(selected_anime_id.clone());
+
+        command_type = CommandType::List;
+        command_args.anime_id = anime_id;
       }
       "-l" | "--list" => {
-        command = Command::List(selected_anime_id.clone());
+        command_type = CommandType::List;
       }
       "-d" | "--download" => {
         let episode_nums = match args.next() {
@@ -72,8 +94,11 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
             return Err("error".to_string());
           }
         };
-        let episode_num_vec: Vec<String> = episode_nums.split(',').map(|e| e.to_string()).collect();
-        command = Command::Download(selected_anime_id.clone(), episode_num_vec);
+        let episode_num_vec: Vec<String> =
+          episode_nums.split(',').map(|e| e.to_string()).collect();
+
+        command_type = CommandType::Download;
+        command_args.episode_nums = episode_num_vec;
       }
       "-u" | "--upload" => {
         let filename = match args.next() {
@@ -83,14 +108,28 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
             return Err("error".to_string());
           }
         };
-        command = Command::Upload(filename);
+        command_type = CommandType::Upload;
+        command_args.filename = filename;
+      }
+      "-m" | "--max-concurrent" => {
+        let max_concurrent = match args.next() {
+          Some(m) => m.parse::<usize>().unwrap(),
+          None => {
+            eprintln!("max concurrent is missing");
+            return Err("max concurrent is missing".to_string());
+          }
+        };
+        command_args.max_concurrent = max_concurrent;
       }
       "--all" => {
-        command = Command::DownloadAll(selected_anime_id.clone());
+        command_type = CommandType::DownloadAll;
       }
       _ => {}
     }
   }
 
-  Ok(command)
+  Ok(Command {
+    t: command_type,
+    args: command_args,
+  })
 }

@@ -8,7 +8,7 @@ pub mod cli;
 pub mod http;
 pub mod upload;
 
-use cli::{parse_args, print_help, Command};
+use cli::{parse_args, print_help, CommandType};
 
 pub type AsyncResult<T> = Result<T, Box<dyn Error>>;
 
@@ -28,11 +28,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let args = env::args();
   let command = parse_args(args).unwrap();
 
-  match command {
-    Command::Help => {
+  match command.t {
+    CommandType::Help => {
       print_help();
     }
-    Command::Search(query) => {
+    CommandType::Search => {
+      let query = command.args.query;
       let (anime_list, _search_url) = match api::search(&client, &query).await {
         Ok(a) => a,
         Err(e) => {
@@ -46,7 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:4} | {}", anime.id, anime.title);
       });
     }
-    Command::List(anime_id) => {
+    CommandType::List => {
+      let anime_id = command.args.anime_id;
       let anime = match api::get_anime(&client, &anime_id).await {
         Ok(a) => a,
         Err(e) => {
@@ -60,7 +62,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:4} | {}", episode.num, episode.title);
       })
     }
-    Command::Download(anime_id, episode_nums) => {
+    CommandType::Download => {
+      let anime_id = command.args.anime_id;
+      let episode_nums = command.args.episode_nums;
+      let max_concurrent = command.args.max_concurrent;
+
       let anime = match api::get_anime(&client, &anime_id).await {
         Ok(a) => a,
         Err(e) => {
@@ -82,24 +88,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           }
         };
 
-        let hls_url = match api::get_episode_hls(&client, &episode.url, &anime.info.url).await {
-          Ok(h) => h,
-          Err(e) => {
-            eprintln!("unable to get episode hls");
-            return Err(e);
-          }
-        };
+        let hls_url =
+          match api::get_episode_hls(&client, &episode.url, &anime.info.url)
+            .await
+          {
+            Ok(h) => h,
+            Err(e) => {
+              eprintln!("unable to get episode hls");
+              return Err(e);
+            }
+          };
 
         let path = format!("./{}", anime.info.title);
         let filename =
-          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title).to_string();
+          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title)
+            .to_string();
         let filename = sanitize_filename(&filename);
         fs::create_dir_all(&path).unwrap();
         let filename = format!("{}/{}", path, filename);
-        api::download_episode(&client, &hls_url, &filename).await?;
+        api::download_episode(&client, &hls_url, &filename, max_concurrent)
+          .await?;
       }
     }
-    Command::DownloadAll(anime_id) => {
+    CommandType::DownloadAll => {
+      let anime_id = command.args.anime_id;
+      let max_concurrent = command.args.max_concurrent;
       let anime = match api::get_anime(&client, &anime_id).await {
         Ok(a) => a,
         Err(e) => {
@@ -109,27 +122,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       };
 
       for episode in anime.episodes {
-        let hls_url = match api::get_episode_hls(&client, &episode.url, &anime.info.url).await {
-          Ok(h) => h,
-          Err(e) => {
-            eprintln!("unable to get episode hls");
-            return Err(e);
-          }
-        };
+        let hls_url =
+          match api::get_episode_hls(&client, &episode.url, &anime.info.url)
+            .await
+          {
+            Ok(h) => h,
+            Err(e) => {
+              eprintln!("unable to get episode hls");
+              return Err(e);
+            }
+          };
 
         let path = format!("./{}", anime.info.title);
         let filename =
-          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title).to_string();
+          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title)
+            .to_string();
         let filename = sanitize_filename(&filename);
         fs::create_dir_all(&path).unwrap();
         let filename = format!("{}/{}", path, filename);
-        api::download_episode(&client, &hls_url, &filename).await?;
+        api::download_episode(&client, &hls_url, &filename, max_concurrent)
+          .await?;
       }
     }
-    Command::Upload(filename) => {
+    CommandType::Upload => {
+      let filename = command.args.filename;
       upload::upload(&filename).await?;
     }
-    Command::None => {}
   }
 
   Ok(())
