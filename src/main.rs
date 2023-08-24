@@ -32,6 +32,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     CommandType::Help => {
       print_help();
     }
+    CommandType::Top => {
+      let anime_list = match api::get_top(&client).await {
+        Ok(a) => a,
+        Err(e) => {
+          eprintln!("Failed to get top anime");
+          return Err(e);
+        }
+      };
+
+      anime_list.iter().for_each(|anime| {
+        println!("{:4} | {}", anime.id, anime.title);
+      });
+    }
+    CommandType::New => {
+      let anime_list = match api::get_new(&client).await {
+        Ok(a) => a,
+        Err(e) => {
+          eprintln!("Failed to get new anime");
+          return Err(e);
+        }
+      };
+
+      anime_list.iter().for_each(|anime| {
+        println!("{:4} | {}", anime.id, anime.title);
+      });
+    }
     CommandType::Search => {
       let query = command.args.query;
       let (anime_list, _search_url) = match api::search(&client, &query).await {

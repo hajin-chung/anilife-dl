@@ -25,11 +25,7 @@ pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
 // const HLS_ENC_TAG: &str = "#EXT-X-KEY";
 const HLS_SEG_TAG: &str = "#EXTINF";
 
-pub fn build_url(path: &String) -> String {
-  HOST.to_string() + path
-}
-
-pub fn build_url_from_str(path: &str) -> String {
+pub fn build_url(path: &str) -> String {
   HOST.to_string() + path
 }
 
@@ -48,6 +44,73 @@ pub struct LifeEpisodeInfo {
   pub title: String,
   pub url: String,
   pub num: String,
+}
+
+pub async fn get_top(client: &Client) -> AsyncResult<Vec<LifeAnimeInfo>> {
+  let url = build_url("/top20");
+  let html = client.get(&url).send().await?.text().await?;
+  let document = Html::parse_document(&html);
+
+  let selector = Selector::parse(".bsx").unwrap();
+  let a_selector = Selector::parse("a").unwrap();
+  let title_selector = Selector::parse("h2[itemprop]").unwrap();
+
+  let anime: Vec<LifeAnimeInfo> = document
+    .select(&selector)
+    .map(|element| {
+      let url_element = element.select(&a_selector).next();
+      let title_element = element.select(&title_selector).next();
+      (url_element, title_element)
+    })
+    .filter(|(url_element, title_element)| {
+      url_element.is_some() && title_element.is_some()
+    })
+    .map(|(url_element, title_element)| {
+      let url_str = url_element.unwrap().value().attr("href").unwrap_or("");
+      let url = build_url(url_str);
+      let title = title_element.unwrap().inner_html();
+      let id = url.split('/').last().unwrap_or("\0").to_string();
+
+      LifeAnimeInfo { id, url, title }
+    })
+    .collect();
+
+  Ok(anime)
+}
+
+pub async fn get_new(client: &Client) -> AsyncResult<Vec<LifeAnimeInfo>> {
+  let url = build_url("/");
+  let html = client.get(&url).send().await?.text().await?;
+  let document = Html::parse_document(&html);
+  let new_selector = Selector::parse(".listupd").unwrap();
+
+  let anime_lists = document.select(&new_selector).skip(1).next().unwrap();
+
+  let selector = Selector::parse(".bsx").unwrap();
+  let a_selector = Selector::parse("a").unwrap();
+  let title_selector = Selector::parse("h2[itemprop]").unwrap();
+
+  let anime: Vec<LifeAnimeInfo> = anime_lists
+    .select(&selector)
+    .map(|element| {
+      let url_element = element.select(&a_selector).next();
+      let title_element = element.select(&title_selector).next();
+      (url_element, title_element)
+    })
+    .filter(|(url_element, title_element)| {
+      url_element.is_some() && title_element.is_some()
+    })
+    .map(|(url_element, title_element)| {
+      let url_str = url_element.unwrap().value().attr("href").unwrap_or("");
+      let url = build_url(url_str);
+      let title = title_element.unwrap().inner_html();
+      let id = url.split('/').last().unwrap_or("\0").to_string();
+
+      LifeAnimeInfo { id, url, title }
+    })
+    .collect();
+
+  Ok(anime)
 }
 
 pub async fn search(
@@ -75,7 +138,7 @@ pub async fn search(
     })
     .map(|(url_element, title_element)| {
       let url_str = url_element.unwrap().value().attr("href").unwrap_or("");
-      let url = build_url_from_str(url_str);
+      let url = build_url(url_str);
       let title = title_element.unwrap().inner_html();
       let id = url.split('/').last().unwrap_or("\0").to_string();
 
@@ -87,7 +150,8 @@ pub async fn search(
 }
 
 pub async fn get_anime(client: &Client, id: &String) -> AsyncResult<LifeAnime> {
-  let url = format!("https://anilife.live/detail/id/{}", id);
+  let anime_path = format!("/detail/id/{}", id);
+  let url = build_url(&anime_path);
   let res = client.get(url).send().await?;
   let anime_url = res.url().to_string();
   let html = res.text().await?;
@@ -280,7 +344,6 @@ pub async fn download_episode(
   println!("\nCombining...");
   segments.sort_by_key(|a| a.index);
   segments.iter().for_each(|segment| {
-    info!("COMBINE {}", segment.filename);
     let mut segment_ts = fs::OpenOptions::new()
       .read(true)
       .open(&segment.filename)
@@ -304,7 +367,6 @@ async fn download_segment(
 ) -> Option<Segment> {
   let _permit = semaphore.acquire().await.unwrap();
 
-  info!("START segment {}", index);
   let client = reqwest::Client::new();
   let res = client
     .get(url)
@@ -325,7 +387,6 @@ async fn download_segment(
   let mut file = File::create(&filename).unwrap();
   let encrypted = bytes.to_vec();
   file.write_all(&encrypted).unwrap();
-  info!("END segment {} length: {}", index, bytes.len());
 
   Some(Segment { index, filename })
 }

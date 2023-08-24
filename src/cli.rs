@@ -11,6 +11,8 @@ pub fn print_help() {
   println!("Options: ");
   println!("  -h --help      Show this screen");
   println!("  -s --search    Search anime with title");
+  println!("  -t --top       get Top 20 animes");
+  println!("  -n --new       recently updated animes");
   println!("  -l --list      List episodes of anime");
   println!("  -d --download  Download episode of that index");
   println!("  --all          Download all episodes");
@@ -22,6 +24,8 @@ pub enum CommandType {
   List,
   Download,
   DownloadAll,
+  Top,
+  New,
   Upload,
   Help,
 }
@@ -58,6 +62,12 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
     match arg.as_str() {
       "-h" | "--help" => {
         command_type = CommandType::Help;
+      }
+      "-t" | "--top" => {
+        command_type = CommandType::Top;
+      }
+      "-n" | "--new" => {
+        command_type = CommandType::New;
       }
       "-s" | "--search" => {
         let query = match args.next() {
