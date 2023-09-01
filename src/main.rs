@@ -6,7 +6,6 @@ use regex::Regex;
 pub mod api;
 pub mod cli;
 pub mod http;
-pub mod upload;
 
 use cli::{parse_args, print_help, CommandType};
 
@@ -23,7 +22,7 @@ extern crate log;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let _log2 = log2::open(".log.tmp").start();
+  env_logger::init();
   let client = create_http_client();
   let args = env::args();
   let command = parse_args(args).unwrap();
@@ -169,10 +168,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         api::download_episode(&client, &hls_url, &filename, max_concurrent)
           .await?;
       }
-    }
-    CommandType::Upload => {
-      let filename = command.args.filename;
-      upload::upload(&filename).await?;
     }
   }
 

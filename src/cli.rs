@@ -5,9 +5,8 @@ pub fn print_help() {
   println!("Usage: ");
   println!("  anime-dl --search <query>");
   println!("  anime-dl --anime <anime_id> --list");
-  println!("  anime-dl --anime <anime_id> --<episode_num1>,<episode_num2>,...");
+  println!("  anime-dl --anime <anime_id> --d <episode_num1>,<episode_num2>,...");
   println!("  anime-dl --anime <anime_id> --all");
-  println!("  anime-dl --upload <filename>");
   println!("Options: ");
   println!("  -h --help      Show this screen");
   println!("  -s --search    Search anime with title");
@@ -16,7 +15,6 @@ pub fn print_help() {
   println!("  -l --list      List episodes of anime");
   println!("  -d --download  Download episode of that index");
   println!("  --all          Download all episodes");
-  println!("  -u --upload    Upload file to youtube");
 }
 
 pub enum CommandType {
@@ -26,7 +24,6 @@ pub enum CommandType {
   DownloadAll,
   Top,
   New,
-  Upload,
   Help,
 }
 
@@ -109,17 +106,6 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
 
         command_type = CommandType::Download;
         command_args.episode_nums = episode_num_vec;
-      }
-      "-u" | "--upload" => {
-        let filename = match args.next() {
-          Some(i) => i,
-          None => {
-            eprintln!("file name is missing");
-            return Err("error".to_string());
-          }
-        };
-        command_type = CommandType::Upload;
-        command_args.filename = filename;
       }
       "-m" | "--max-concurrent" => {
         let max_concurrent = match args.next() {

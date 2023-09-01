@@ -225,7 +225,6 @@ pub async fn get_episode_hls(
     warn!("no players");
     return Err("no players".into());
   }
-  info!("{:?}", player_urls);
 
   let player_url = &player_urls[0];
   let player_html = client
