@@ -1,6 +1,7 @@
 use std::{fs, io};
 
 pub fn concat_ts(path: String) {
+  println!("{}", path);
   let mut all_ts = fs::OpenOptions::new()
     .create_new(true)
     .append(true)
