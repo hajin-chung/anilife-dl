@@ -1,6 +1,7 @@
 use std::{env, error::Error, fs};
 
 use http::create_http_client;
+use log::error;
 use regex::Regex;
 
 pub mod api;
@@ -35,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       let anime_list = match api::get_top(&client).await {
         Ok(a) => a,
         Err(e) => {
-          eprintln!("Failed to get top anime");
+          error!("Failed to get top anime");
           return Err(e);
         }
       };
@@ -48,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       let anime_list = match api::get_new(&client).await {
         Ok(a) => a,
         Err(e) => {
-          eprintln!("Failed to get new anime");
+          error!("Failed to get new anime");
           return Err(e);
         }
       };
@@ -62,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       let (anime_list, _search_url) = match api::search(&client, &query).await {
         Ok(a) => a,
         Err(e) => {
-          eprintln!("Failed to search anime {}", query);
+          error!("Failed to search anime {}", query);
           return Err(e);
         }
       };
@@ -77,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       let anime = match api::get_anime(&client, &anime_id).await {
         Ok(a) => a,
         Err(e) => {
-          eprintln!("Failed to get anime with id {}", anime_id);
+          error!("Failed to get anime with id {}", anime_id);
           return Err(e);
         }
       };
@@ -95,7 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       let anime = match api::get_anime(&client, &anime_id).await {
         Ok(a) => a,
         Err(e) => {
-          eprintln!("Failed to get anime with id {}", anime_id);
+          error!("Failed to get anime with id {}", anime_id);
           return Err(e);
         }
       };
@@ -108,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
           Some(e) => e,
           None => {
-            eprintln!("Episode with episode num {} not found", episode_num);
+            error!("Episode with episode num {} not found", episode_num);
             return Ok(());
           }
         };
@@ -119,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           {
             Ok(h) => h,
             Err(e) => {
-              eprintln!("unable to get episode hls");
+              error!("unable to get episode hls");
               return Err(e);
             }
           };
@@ -141,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       let anime = match api::get_anime(&client, &anime_id).await {
         Ok(a) => a,
         Err(e) => {
-          eprintln!("Failed to get anime with id {}", anime_id);
+          error!("Failed to get anime with id {}", anime_id);
           return Err(e);
         }
       };
@@ -153,7 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           {
             Ok(h) => h,
             Err(e) => {
-              eprintln!("unable to get episode hls");
+              error!("unable to get episode hls");
               return Err(e);
             }
           };

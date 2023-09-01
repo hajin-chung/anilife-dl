@@ -1,5 +1,7 @@
 use std::env::Args;
 
+use log::error;
+
 pub fn print_help() {
   println!("anime-dl");
   println!("Usage: ");
@@ -70,7 +72,7 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
         let query = match args.next() {
           Some(q) => q,
           None => {
-            eprintln!("Search query is missing");
+            error!("Search query is missing");
             return Err("error".to_string());
           }
         };
@@ -82,7 +84,7 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
         let anime_id = match args.next() {
           Some(i) => i,
           None => {
-            eprintln!("Anime id is missing");
+            error!("Anime id is missing");
             return Err("error".to_string());
           }
         };
@@ -97,7 +99,7 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
         let episode_nums = match args.next() {
           Some(i) => i,
           None => {
-            eprintln!("Episdoe num is missing");
+            error!("Episdoe num is missing");
             return Err("error".to_string());
           }
         };
@@ -111,7 +113,7 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
         let max_concurrent = match args.next() {
           Some(m) => m.parse::<usize>().unwrap(),
           None => {
-            eprintln!("max concurrent is missing");
+            error!("max concurrent is missing");
             return Err("max concurrent is missing".to_string());
           }
         };
