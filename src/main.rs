@@ -172,8 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       }
     }
     CommandType::Concat => {
-      let path = command.args.path;
-      video::concat_ts(path);
+      video::concat_ts();
     }
   }
 

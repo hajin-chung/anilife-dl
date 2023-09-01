@@ -37,7 +37,6 @@ pub struct CommandArgs {
   pub episode_nums: Vec<String>,
   pub filename: String,
   pub max_concurrent: usize,
-  pub path: String,
 }
 
 pub struct Command {
@@ -125,14 +124,7 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
         command_type = CommandType::DownloadAll;
       }
       "--concat" => {
-        let path = match args.next() {
-          Some(i) => i,
-          None => {
-            error!("path is missing");
-            return Err("error".to_string());
-          }
-        };
-        command_args.path = path;
+        command_type = CommandType::Concat;
       }
       _ => {}
     }
