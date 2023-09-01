@@ -7,6 +7,7 @@ use regex::Regex;
 pub mod api;
 pub mod cli;
 pub mod http;
+pub mod video;
 
 use cli::{parse_args, print_help, CommandType};
 
@@ -169,6 +170,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         api::download_episode(&client, &hls_url, &filename, max_concurrent)
           .await?;
       }
+    }
+    CommandType::Concat => {
+      let path = command.args.path;
+      video::concat_ts(path);
     }
   }
 
