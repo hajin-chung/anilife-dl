@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
           };
 
-        let path = format!("./{}", anime.info.title);
+        let path = format!("./{}", sanitize_filename(&anime.info.title));
         let filename =
           format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title)
             .to_string();
