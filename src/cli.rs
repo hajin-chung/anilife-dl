@@ -1,13 +1,15 @@
 use std::env::Args;
 
-use log::error;
+use log::{error, info};
 
 pub fn print_help() {
   println!("anime-dl");
   println!("Usage: ");
   println!("  anime-dl --search <query>");
   println!("  anime-dl --anime <anime_id> --list");
-  println!("  anime-dl --anime <anime_id> --d <episode_num1>,<episode_num2>,...");
+  println!(
+    "  anime-dl --anime <anime_id> --d <episode_num1>,<episode_num2>,..."
+  );
   println!("  anime-dl --anime <anime_id> --all");
   println!("Options: ");
   println!("  -h --help      Show this screen");
@@ -134,4 +136,8 @@ pub fn parse_args(mut args: Args) -> Result<Command, String> {
     t: command_type,
     args: command_args,
   })
+}
+
+pub fn print_progress(filename: &str, count: usize, len: usize) {
+  info!("[{}/{}] {}", count, len, filename);
 }

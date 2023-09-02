@@ -5,11 +5,7 @@ use std::{
 };
 
 use base64::{engine::general_purpose, Engine as _};
-use crossterm::{
-  cursor, style,
-  terminal::{Clear, ClearType},
-  QueueableCommand,
-};
+use crossterm::{QueueableCommand, cursor};
 use log::{debug, info, warn};
 use regex::Regex;
 use reqwest::Client;
@@ -17,7 +13,7 @@ use scraper::{Html, Selector};
 use serde_json::Value;
 use tokio::sync::Semaphore;
 
-use crate::AsyncResult;
+use crate::{cli::print_progress, AsyncResult};
 
 pub const HOST: &str = "https://anilife.live";
 pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36";
@@ -192,6 +188,8 @@ pub async fn get_anime(client: &Client, id: &String) -> AsyncResult<LifeAnime> {
     })
     .collect();
 
+  info!("anime_title = {}", title);
+
   Ok(LifeAnime {
     info: LifeAnimeInfo {
       id: id.to_string(),
@@ -261,21 +259,9 @@ pub async fn get_episode_hls(
     _ => return Err("hls url not found".into()),
   };
 
+  info!("hsl_url = {}...", &hls_url[..25]);
+  debug!("hsl_url = {}", hls_url);
   Ok(hls_url.clone())
-}
-
-fn print_progress(
-  filename: &String,
-  count: usize,
-  len: usize,
-) -> io::Result<()> {
-  let mut stdout = stdout();
-  stdout
-    .queue(cursor::RestorePosition)?
-    .queue(Clear(ClearType::CurrentLine))?
-    .queue(style::Print(format!("{} [{}/{}]", filename, count, len)))?;
-  stdout.flush()?;
-  Ok(())
 }
 
 struct Segment {
@@ -320,7 +306,7 @@ pub async fn download_episode(
   for task in tasks {
     let segment = task.await?.unwrap();
     count += 1;
-    print_progress(&filename, count, segment_urls.len())?;
+    print_progress(&filename, count, segment_urls.len());
     segments.push(segment);
   }
 
@@ -340,7 +326,7 @@ pub async fn download_episode(
     .open("./segments/all.ts")
     .unwrap();
 
-  println!("\nCombining...");
+  info!("Combining...");
   segments.sort_by_key(|a| a.index);
   segments.iter().for_each(|segment| {
     let mut segment_ts = fs::OpenOptions::new()

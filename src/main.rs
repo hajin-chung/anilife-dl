@@ -1,5 +1,6 @@
 use std::{env, error::Error, fs};
 
+use env_logger::Env;
 use http::create_http_client;
 use log::error;
 use regex::Regex;
@@ -13,18 +14,32 @@ use cli::{parse_args, print_help, CommandType};
 
 pub type AsyncResult<T> = Result<T, Box<dyn Error>>;
 
-pub fn sanitize_filename(filename: &str) -> String {
-  let forbidden_pattern = r#"[<>:"/\\|?*]|[\x00-\x1F]"#;
-  let re = Regex::new(forbidden_pattern).unwrap();
-  let sanitized_filename = re.replace_all(filename, "").to_string();
-  sanitized_filename
+trait FileName {
+  fn sanitize(&self) -> String;
+  fn zero_pad(&self, width: usize) -> String;
+}
+
+impl FileName for String {
+  fn sanitize(&self) -> String {
+    let forbidden_pattern = r#"[<>:"/\\|?*]|[\x00-\x1F]"#;
+    let re = Regex::new(forbidden_pattern).unwrap();
+    let sanitized_filename = re.replace_all(self, "").to_string();
+    sanitized_filename
+  }
+
+  fn zero_pad(&self, width: usize) -> String {
+    let padding = width.saturating_sub(self.len());
+    let padded_string = format!("{}{}", "0".repeat(padding), self);
+    padded_string
+  }
 }
 
 extern crate log;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  env_logger::init();
+  env_logger::Builder::from_env(Env::default().default_filter_or("info"))
+    .init();
   let client = create_http_client();
   let args = env::args();
   let command = parse_args(args).unwrap();
@@ -128,9 +143,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let path = format!("./{}", anime.info.title);
         let filename =
-          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title)
-            .to_string();
-        let filename = sanitize_filename(&filename);
+          format!("{}-{}.ts", episode.num.zero_pad(2), episode.title)
+            .to_string()
+            .sanitize();
         fs::create_dir_all(&path).unwrap();
         let filename = format!("{}/{}", path, filename);
         api::download_episode(&client, &hls_url, &filename, max_concurrent)
@@ -160,11 +175,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
           };
 
-        let path = format!("./{}", sanitize_filename(&anime.info.title));
+        let path = format!("./{}", &anime.info.title.sanitize());
         let filename =
-          format!("{}-{}-{}.ts", anime.info.title, episode.num, episode.title)
-            .to_string();
-        let filename = sanitize_filename(&filename);
+          format!("{}-{}.ts", episode.num.zero_pad(2), episode.title)
+            .to_string()
+            .sanitize();
         fs::create_dir_all(&path).unwrap();
         let filename = format!("{}/{}", path, filename);
         api::download_episode(&client, &hls_url, &filename, max_concurrent)
