@@ -1,11 +1,10 @@
 use std::{
   fs::{self, File},
-  io::{self, stdout, Write},
+  io::{self, Write},
   sync::Arc,
 };
 
 use base64::{engine::general_purpose, Engine as _};
-use crossterm::{QueueableCommand, cursor};
 use log::{debug, info, warn};
 use regex::Regex;
 use reqwest::Client;
@@ -300,9 +299,7 @@ pub async fn download_episode(
 
   let mut count: usize = 0;
   let mut segments = Vec::new();
-  let mut stdout = stdout();
 
-  stdout.queue(cursor::SavePosition)?;
   for task in tasks {
     let segment = task.await?.unwrap();
     count += 1;
