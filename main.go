@@ -114,7 +114,8 @@ func handleDownload(downloadCmd *flag.FlagSet, targetEpisodes *string) {
 		os.Exit(1)
 	}
 
-	os.MkdirAll(fmt.Sprintf("./%s", anime.Info.Title), 0755)
+	sanitizedTitle := strings.ReplaceAll(anime.Info.Title, "/", " ")
+	os.MkdirAll(fmt.Sprintf("./%s", sanitizedTitle), 0755)
 	fmt.Printf("Downloading %s\n", anime.Info.Title)
 	if *targetEpisodes == "" {
 		for _, episode := range anime.Episodes {
@@ -125,7 +126,8 @@ func handleDownload(downloadCmd *flag.FlagSet, targetEpisodes *string) {
 				os.Exit(1)
 			}
 
-			episodeFileName := fmt.Sprintf("./%s/%02s-%s.ts", anime.Info.Title, episode.Num, episode.Title)
+			sanitizedEpisodeTitle := strings.ReplaceAll(episode.Title, "/", "")
+			episodeFileName := fmt.Sprintf("./%s/%02s-%s.ts", anime.Info.Title, episode.Num, sanitizedEpisodeTitle)
 			err = client.DownloadEpisode(hlsUrl, episodeFileName)
 			if err != nil {
 				fmt.Printf("error on DownloadEpisode: %s\n", err)
