@@ -23,7 +23,7 @@ func main() {
 	downloadEpisodes := downloadCmd.String("episodes", "", "")
 
 	if len(os.Args) < 2 {
-		fmt.Println("hi")
+		printHelp()
 		return
 	}
 
@@ -35,8 +35,17 @@ func main() {
 	case "download":
 		handleDownload(downloadCmd, downloadEpisodes)
 	default:
-		fmt.Println("unknown verb")
+		printHelp()
 	}
+}
+
+func printHelp() {
+	fmt.Println("anilfie-dl")
+	fmt.Println("Usage:")
+	fmt.Println("  anilife-dl search <query>")
+	fmt.Println("  anilife-dl info <anime id>")
+	fmt.Println("  anilife-dl download <anime id>")
+	fmt.Println("  anilife-dl download --episodes <episode number>,... <anime id>")
 }
 
 func handleSearch(searchCmd *flag.FlagSet) {
