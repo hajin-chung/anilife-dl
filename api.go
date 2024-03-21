@@ -173,7 +173,7 @@ func (c *LifeClient) GetEpisodeHls(url string, referer string) (string, error) {
 	return videoData[0].Url, nil
 }
 
-func (c *LifeClient) DownloadEpisode(url string, filename string) error {
+func (c *LifeClient) DownloadHls(url string, filename string) error {
 	err := os.MkdirAll("./segments", 0755)
 	if err != nil {
 		return err
@@ -191,6 +191,7 @@ func (c *LifeClient) DownloadEpisode(url string, filename string) error {
 	segmentUrls := ParseHls(string(hlsBytes[:]))
 	segments := []*Segment{}
 	count := 0
+
 	for idx, segmentUrl := range segmentUrls {
 		wg.Add(1)
 		go func(idx int, url string) {
@@ -261,6 +262,21 @@ func (c *LifeClient) DownloadSegment(idx int, url string) (*Segment, error) {
 		return nil, err
 	}
 	return &Segment{Index: idx, FileName: filename}, nil
+}
+
+func (c *LifeClient) DownloadEpisode(anime *LifeAnime, episode *LifeEpisodeInfo) error {
+	hlsUrl, err := client.GetEpisodeHls(episode.Url, anime.Info.Url)
+	if err != nil {
+		return err
+	}
+
+	sanitizedEpisodeTitle := strings.ReplaceAll(episode.Title, "/", "")
+	episodeFileName := fmt.Sprintf("./%s/%02s-%s.ts", anime.Info.Title, episode.Num, sanitizedEpisodeTitle)
+	err = client.DownloadHls(hlsUrl, episodeFileName)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func ParseHls(content string) []string {

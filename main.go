@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -14,13 +13,15 @@ type CommandType string
 var client *LifeClient
 
 func main() {
-	client = NewLifeClient()
-
 	searchCmd := flag.NewFlagSet("search", flag.ExitOnError)
 	downloadCmd := flag.NewFlagSet("download", flag.ExitOnError)
 	infoCmd := flag.NewFlagSet("info", flag.ExitOnError)
 
 	downloadEpisodes := downloadCmd.String("episodes", "", "")
+	// downloadLimit := downloadCmd.Int("limit", 1, "")
+
+	downloadLimit := 10
+	client = NewLifeClient(downloadLimit * 1024)
 
 	if len(os.Args) < 2 {
 		printHelp()
@@ -120,52 +121,32 @@ func handleDownload(downloadCmd *flag.FlagSet, targetEpisodes *string) {
 	if *targetEpisodes == "" {
 		for _, episode := range anime.Episodes {
 			fmt.Printf("Downloading %s %s\n", episode.Num, episode.Title)
-			hlsUrl, err := client.GetEpisodeHls(episode.Url, anime.Info.Url)
+			err = client.DownloadEpisode(anime, &episode)
 			if err != nil {
-				fmt.Printf("error on GetEpisodeHls: %s\n", err)
-				os.Exit(1)
-			}
-
-			sanitizedEpisodeTitle := strings.ReplaceAll(episode.Title, "/", "")
-			episodeFileName := fmt.Sprintf("./%s/%02s-%s.ts", anime.Info.Title, episode.Num, sanitizedEpisodeTitle)
-			err = client.DownloadEpisode(hlsUrl, episodeFileName)
-			if err != nil {
-				fmt.Printf("error on DownloadEpisode: %s\n", err)
+				fmt.Printf("error on DownloadEpisode: %s", err)
 				os.Exit(1)
 			}
 		}
 	} else {
-		fmt.Printf("Episodes: %s\n", *targetEpisodes)
 		eps := strings.Split(*targetEpisodes, ",")
 		fmt.Printf("Downloading episodes: %v\n", eps)
+		episodeIndexMap := map[string]bool{}
 
 		for _, epi := range eps {
-			episodeIdx, err := strconv.Atoi(epi)
-			if err != nil {
-				fmt.Printf("error on strconv epi: %s\n", err)
-				os.Exit(1)
-			}
+			episodeIndexMap[epi] = true
+		}
 
-			if episodeIdx < 0 || len(anime.Episodes) <= episodeIdx {
-				fmt.Println("episode index is out of bounds")
+		for _, episode := range anime.Episodes {
+			if episodeIndexMap[episode.Num] == false {
 				continue
 			}
 
-			episode := anime.Episodes[episodeIdx]
 			fmt.Printf("Downloading %s %s\n", episode.Num, episode.Title)
-			hlsUrl, err := client.GetEpisodeHls(episode.Url, anime.Info.Url)
+			err = client.DownloadEpisode(anime, &episode)
 			if err != nil {
-				fmt.Printf("error on GetEpisodeHls: %s\n", err)
+				fmt.Printf("error on DownloadEpisode: %s", err)
 				os.Exit(1)
 			}
-
-			episodeFileName := fmt.Sprintf("./%s/%02s-%s", episode.Num, episode.Title)
-			err = client.DownloadEpisode(hlsUrl, episodeFileName)
-			if err != nil {
-				fmt.Printf("error on DownloadEpisode: %s\n", err)
-				os.Exit(1)
-			}
-
 		}
 	}
 }

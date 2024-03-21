@@ -11,7 +11,7 @@ type LifeClient struct {
 	Referer string
 }
 
-func NewLifeClient() *LifeClient {
+func NewLifeClient(limit int) *LifeClient {
 	return &LifeClient{
 		Client:  &http.Client{},
 		Referer: "",
