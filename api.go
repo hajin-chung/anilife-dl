@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/schollz/progressbar/v3"
 )
 
 const anilifeUrl = "https://anilife.live"
@@ -190,15 +191,15 @@ func (c *LifeClient) DownloadHls(url string, filename string) error {
 
 	segmentUrls := ParseHls(string(hlsBytes[:]))
 	segments := []*Segment{}
-	count := 0
+
+	bar := progressbar.Default(int64(len(segmentUrls)))
 
 	for idx, segmentUrl := range segmentUrls {
 		wg.Add(1)
 		go func(idx int, url string) {
 			// TODO: handle error
 			segment, _ := c.DownloadSegment(idx, url)
-			count++
-			fmt.Printf("%d / %d\n", count, len(segmentUrls))
+			bar.Add(1)
 			segments = append(segments, segment)
 			wg.Done()
 		}(idx, segmentUrl)
