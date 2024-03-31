@@ -18,10 +18,8 @@ func main() {
 	infoCmd := flag.NewFlagSet("info", flag.ExitOnError)
 
 	downloadEpisodes := downloadCmd.String("episodes", "", "")
-	// downloadLimit := downloadCmd.Int("limit", 1, "")
 
-	downloadLimit := 10
-	client = NewLifeClient(downloadLimit * 1024)
+	client = NewLifeClient()
 
 	if len(os.Args) < 2 {
 		printHelp()
