@@ -134,7 +134,8 @@ func handleDownload(downloadCmd *flag.FlagSet, targetEpisodes *string) {
 			episodeIndexMap[epi] = true
 		}
 
-		for _, episode := range anime.Episodes {
+		for i := len(anime.Episodes)-1; i >= 0; i-- {
+			episode := anime.Episodes[i]
 			if episodeIndexMap[episode.Num] == false {
 				continue
 			}
