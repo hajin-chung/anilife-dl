@@ -116,6 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           return Err(e);
         }
       };
+      println!("{} {}", anime.episodes[0].url, anime.info.url);
 
       for episode_num in episode_nums {
         let episode = match anime
