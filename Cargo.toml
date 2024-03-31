@@ -1,5 +1,5 @@
 [package]
-name = "anilife-rs"
+name = "anilife-dl"
 version = "0.1.0"
 edition = "2021"
 
@@ -15,7 +15,6 @@ base64 = "0.21.2"
 log = "0.4.20"
 env_logger = "0.10.0"
 futures ="0.3.28"
-crossterm = "0.27.0"
 
 [profile.release]
 opt-level = 'z'     # Optimize for size
