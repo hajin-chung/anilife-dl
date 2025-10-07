@@ -124,7 +124,7 @@ func HandleDownload(args []string) {
 			HandleHelp()
 			return
 		}
-		filename := fmt.Sprintf("%-2s %s.mp4", e.Num, e.Title)
+		filename := fmt.Sprintf("%s.%s.mp4", LeftPadString(e.Num, 3, "0"), e.Title)
 		filename = SanitizeFilename(filename)
 		out := filepath.Join(path, filename)
 

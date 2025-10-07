@@ -22,3 +22,10 @@ func SanitizeFilename(filename string) string {
 	return filename
 }
 
+func LeftPadString(str string, width int, pad string) string {
+	if len(str) >= width {
+		return str
+	}
+	return strings.Repeat(pad, width - len(str)) + str
+}
+
