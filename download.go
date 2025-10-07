@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/schollz/progressbar/v3"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -44,9 +43,8 @@ func (a *AnilifeClient) Download(url string, path string) error {
 	segmentUrls := parseHls(hlsContent)
 	slog.Debug("Download", "segmentUrls", segmentUrls)
 
-	bar := progressbar.Default(int64(len(segmentUrls)))
-	maxWorkers := runtime.GOMAXPROCS(0)
-	sem := semaphore.NewWeighted(int64(maxWorkers))
+	maxWorkers := int64(2 * runtime.GOMAXPROCS(0))
+	sem := semaphore.NewWeighted(maxWorkers)
 
 	for i, url := range segmentUrls {
 		if err := sem.Acquire(context.Background(), 1); err != nil {
@@ -56,11 +54,11 @@ func (a *AnilifeClient) Download(url string, path string) error {
 
 		go func() {
 			a.downloadSegment(sem, url, i)
-			bar.Add(1)
+			fmt.Printf("download segment %d / %d\n", i, len(segmentUrls))
 		}()
 	}
 
-	if err := sem.Acquire(context.Background(), int64(maxWorkers)); err != nil {
+	if err := sem.Acquire(context.Background(), maxWorkers); err != nil {
 		slog.Error("Download", "error", err)
 		return err
 	}
@@ -80,8 +78,6 @@ func (a *AnilifeClient) Download(url string, path string) error {
 	}
 	defer file.Close()
 
-	bar = progressbar.Default(int64(len(segmentUrls)))
-
 	for i := range len(segmentUrls) {
 		segmentPath := fmt.Sprintf(".tmp/%d.seg", i)
 		segmentFile, err := os.Open(segmentPath)
@@ -91,14 +87,13 @@ func (a *AnilifeClient) Download(url string, path string) error {
 		}
 		defer segmentFile.Close()
 
-		bytesWritten, err := io.Copy(file, segmentFile)
+		_, err = io.Copy(file, segmentFile)
 		if err != nil {
 			slog.Error("Download", "error", err)
 			return err
 		}
 
-		bar.Add(1)
-		slog.Debug("Download combine", "idx", i, "bytesWritten", bytesWritten)
+		fmt.Printf("Combine segment %d / %d\n", i, len(segmentUrls))
 	}
 	
 	cmd := exec.Command("ffmpeg", "-i", combinePath, "-c", "copy", path)
